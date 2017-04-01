@@ -10,8 +10,6 @@
 #include <time.h>
 #include "parallel_sort.h"
 
-
-
 // implementation of your parallel sorting
 void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
@@ -22,7 +20,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 		qsort(begin, (end - begin)/sizeof(int), sizeof(int), cmpfunc);
 	}
     // Call seeding helper function
-    seed_rand(comm);
+    seed_rand(commsize);
 
     // Generate a pivot
     // Check for pivot in local array
@@ -64,13 +62,12 @@ int cmpfunc (const void * a, const void * b)
 }
 
 // Function to seed RNG once with the same seed on each processor
-void seed_rand(MPI_Comm comm) {
-    int local_size, world_size;
+void seed_rand(int commsize) {
+    int world_size;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_size(comm, local_size);
 
     // Only seed once
-    if (local_size == world_size) {
+    if (commsize == world_size) {
         // Each processor should have the same number for the current minute.
         // There's a small chance the seed will be different between processors
         // if the program runs in a very small window around when the minute

@@ -35,6 +35,6 @@ void parallel_sort(int * begin, int* end, MPI_Comm comm);
 
 int cmpfunc(const void *a, const void *b);
 
-void seed_rand(MPI_Comm comm);
+void seed_rand(int commsize);
 
 #endif // PARALLEL_SORT_H
