@@ -6,12 +6,9 @@
  * Copyright (c) 2014 Georgia Institute of Technology. All Rights Reserved.
  */
 
+#include <stdlib.h>
+#include <time.h>
 #include "parallel_sort.h"
-
-int cmpfunc (const void * a, const void * b)
-{
-   return ( *(int*)a - *(int*)b );
-}
 
 // implementation of your parallel sorting
 void parallel_sort(int* begin, int* end, MPI_Comm comm) {
@@ -24,7 +21,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
 	}
     // Call seeding helper function
-
+    seed_rand(commsize);
 
     // Generate a pivot
     int index = floor(rand());
@@ -55,6 +52,10 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
 
     // Create two new communicators
+    // MPI_Comm_split
+
+
+    // Call self recursively
 
 
 
@@ -65,6 +66,23 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
  *             Implement your own helper functions here:             *
  *********************************************************************/
 
-// ...
+int cmpfunc (const void * a, const void * b)
+{
+   return ( *(int*)a - *(int*)b );
+}
 
 // Function to seed RNG once with the same seed on each processor
+void seed_rand(int commsize) {
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    // Only seed once
+    if (commsize == world_size) {
+        // Each processor should have the same number for the current minute.
+        // There's a small chance the seed will be different between processors
+        // if the program runs in a very small window around when the minute
+        // turns over. This is acceptably unlikely for now.
+        srand(time(NULL) / 60);
+    }
+}
+
