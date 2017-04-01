@@ -40,8 +40,19 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // Split local array based on pivot
     //  - allocate second array
     //  - keep track of size of both arrays
-    int le_size = 0, g_size = 0;
+    //  - realloc
+    int num, le_size = 0, g_size = 0;
     int *greater = (int*) malloc(end - begin);
+    for (int i = 0; i < arrSize; i++) {
+        num = begin[i];
+        if (num <= pivot) {
+            begin[le_size++] = num;
+        } else {
+            greater[g_size++] = num;
+        }
+    }
+    begin = (int*) realloc(begin, sizeof(int) * le_size);
+    greater = (int*) realloc(greater, sizeof(int) * g_size);
     
 
     // Allgather to find total # of elements < and > pivot
@@ -53,8 +64,12 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // Send < and > arrays to appropriate processors (using alltoall)
 
 
+    // Dealloc greater
+
+
     // Create two new communicators
     // MPI_Comm_split
+    // Dealloc old comm
 
 
     // Call self recursively
