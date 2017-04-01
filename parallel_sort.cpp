@@ -14,7 +14,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Terminating condition
 	int commsize;
-	int arrSize = (end - begin)/sizeof(int);
+	int arrSize = sizeof(begin)/sizeof(begin[0]);
 	MPI_Comm_size(comm, &commsize);
 	if(commsize > 1){
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
@@ -27,13 +27,12 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int p, rank, pivot;
     MPI_Comm_size(comm, &p);
     MPI_Comm_rank(comm, &rank);
-    MPI_Status status;
     // Check for pivot in local array
     // If you have the pivot, broadcast it, otherwise receive it
-    if(index/p >= floor(arrSize/p) && index/p <= ceil(arrSize/p)){
+    int source = floor(index/p);
+    if(rank == source){
     	pivot = begin[index%p];
     }
-    int source = floor(index/p);
     MPI_Bcast(&pivot,1,MPI_INT,source,comm);
 
 
@@ -45,6 +44,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     
 
     // Allgather to find total # of elements < and > pivot
+    MPI_Allgather(void* sbuf, int scount, MPI_INT,void* rbuf, int rcount, MPI_INT,comm);
 
 
     // Decide # of processors for < and > pivot
