@@ -12,6 +12,7 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 /**
  * @brief   Parallel, distributed sorting over all processors in `comm`. Each

@@ -6,7 +6,6 @@
  * Copyright (c) 2014 Georgia Institute of Technology. All Rights Reserved.
  */
 
-#include <stdlib.h>
 #include <time.h>
 #include "parallel_sort.h"
 
@@ -15,7 +14,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Terminating condition
 	int commsize;
-	inf arrSize = (end - begin)/sizeof(int);
+	int arrSize = (end - begin)/sizeof(int);
 	MPI_Comm_size(comm, &commsize);
 	if(commsize > 1){
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
@@ -24,18 +23,19 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     seed_rand(commsize);
 
     // Generate a pivot
-    int index = floor(rand());
-    int p, rank;
+    int index = floor(rand()/RAND_MAX*arrSize);
+    int p, rank, pivot;
     MPI_Comm_size(comm, &p);
     MPI_Comm_rank(comm, &rank);
+    MPI_Status status;
     // Check for pivot in local array
     // If you have the pivot, broadcast it, otherwise receive it
-    if(index/p >= floor(arrSize/rank) && index/p <= ceil(arrSize/rank)){
-    	int pivot = begin[index%rank];
-    	MPI_Bcast(&pivot,1,MPI_INT,rank,comm);
-    } else{
-    	//recieve
+    if(index/p >= floor(arrSize/p) && index/p <= ceil(arrSize/p)){
+    	pivot = begin[index%p];
     }
+    int source = floor(index/p)
+    MPI_Bcast(&pivot,1,MPI_INT,source,comm);
+
 
     // Split local array based on pivot
     //  - allocate second array
