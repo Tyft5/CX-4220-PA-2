@@ -10,6 +10,8 @@
 #define PARALLEL_SORT_H
 
 #include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /**
  * @brief   Parallel, distributed sorting over all processors in `comm`. Each
