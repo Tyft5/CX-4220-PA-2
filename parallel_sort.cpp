@@ -30,7 +30,9 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // Split local array based on pivot
     //  - allocate second array
     //  - keep track of size of both arrays
-
+    int le_size = 0, g_size = 0;
+    int *greater = (int*) malloc(end - begin);
+    
 
     // Allgather to find total # of elements < and > pivot
 
