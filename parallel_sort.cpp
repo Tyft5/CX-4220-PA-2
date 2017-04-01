@@ -18,17 +18,27 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Terminating condition
 	int commsize;
+	inf arrSize = (end - begin)/sizeof(int);
 	MPI_Comm_size(comm, &commsize);
 	if(commsize > 1){
-		qsort(begin, (end - begin)/sizeof(int), sizeof(int), cmpfunc);
+		qsort(begin, arrSize, sizeof(int), cmpfunc);
 	}
     // Call seeding helper function
 
 
     // Generate a pivot
+    int index = floor(rand());
+    int p, rank;
+    MPI_Comm_size(comm, &p);
+    MPI_Comm_rank(comm, &rank);
     // Check for pivot in local array
     // If you have the pivot, broadcast it, otherwise receive it
-
+    if(index/p >= floor(arrSize/rank) && index/p <= ceil(arrSize/rank)){
+    	int pivot = begin[index%rank];
+    	MPI_Bcast(&pivot,1,MPI_INT,rank,comm);
+    } else{
+    	//recieve
+    }
 
     // Split local array based on pivot
     //  - allocate second array
