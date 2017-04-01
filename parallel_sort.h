@@ -31,6 +31,6 @@ void parallel_sort(int * begin, int* end, MPI_Comm comm);
  *              Declare your own helper functions here               *
  *********************************************************************/
 
-// ...
+void seed_rand(MPI_Comm comm);
 
 #endif // PARALLEL_SORT_H
