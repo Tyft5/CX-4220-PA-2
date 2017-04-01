@@ -33,7 +33,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     if(index/p >= floor(arrSize/p) && index/p <= ceil(arrSize/p)){
     	pivot = begin[index%p];
     }
-    int source = floor(index/p)
+    int source = floor(index/p);
     MPI_Bcast(&pivot,1,MPI_INT,source,comm);
 
 
