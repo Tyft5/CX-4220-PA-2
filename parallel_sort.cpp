@@ -55,8 +55,15 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     
 
     // Allgather to find total # of elements < and > pivot
-    MPI_Allgather(void* sbuf, int scount, MPI_INT,void* rbuf, int rcount, MPI_INT,comm);
-
+    int* small = (int*) malloc(sizeof(int) * p);
+    int* big = (int*) malloc(sizeof(int) * p);
+    MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT,comm);
+    MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT,comm);
+    int smallsum = 0, bigsum = 0;
+    for(int i = 0; i < p; i++){
+    	smallsum += small[i];
+    	bigsum += big[i];
+    }
 
     // Decide # of processors for < and > pivot
 
