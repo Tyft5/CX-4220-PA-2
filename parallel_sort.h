@@ -33,6 +33,8 @@ void parallel_sort(int * begin, int* end, MPI_Comm comm);
  *              Declare your own helper functions here               *
  *********************************************************************/
 
+int cmpfunc(const void *a, const void *b);
+
 void seed_rand(MPI_Comm comm);
 
 #endif // PARALLEL_SORT_H

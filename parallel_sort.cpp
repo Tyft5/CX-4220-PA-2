@@ -10,10 +10,7 @@
 #include <time.h>
 #include "parallel_sort.h"
 
-int cmpfunc (const void * a, const void * b)
-{
-   return ( *(int*)a - *(int*)b );
-}
+
 
 // implementation of your parallel sorting
 void parallel_sort(int* begin, int* end, MPI_Comm comm) {
@@ -60,6 +57,11 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 /*********************************************************************
  *             Implement your own helper functions here:             *
  *********************************************************************/
+
+int cmpfunc (const void * a, const void * b)
+{
+   return ( *(int*)a - *(int*)b );
+}
 
 // Function to seed RNG once with the same seed on each processor
 void seed_rand(MPI_Comm comm) {
