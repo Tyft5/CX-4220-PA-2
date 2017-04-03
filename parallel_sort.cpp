@@ -7,10 +7,14 @@
  */
 
 #include <time.h>
+#include <math.h>
 #include "parallel_sort.h"
 
 // implementation of your parallel sorting
 void parallel_sort(int* begin, int* end, MPI_Comm comm) {
+
+    int worldsize;
+    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 
     // Terminating condition
 	int commsize;
@@ -20,7 +24,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
 	}
     // Call seeding helper function
-    seed_rand(commsize);
+    seed_rand(commsize, worldsize);
 
     // Generate a pivot
     int index = floor(rand()/RAND_MAX*arrSize);
@@ -66,13 +70,19 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     }
 
     // Decide # of processors for < and > pivot
-
+    int l_proc_num = floor(worldsize * smallsum / (smallsum + bigsum));
+    int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
+    // Receive array for next recursion
 
 
     // Dealloc greater
-
+    if (rank < l_proc_num) {
+        free(greater);
+    } else {
+        free(begin);
+    }
 
     // Create two new communicators
     // MPI_Comm_split
@@ -96,12 +106,9 @@ int cmpfunc (const void * a, const void * b)
 }
 
 // Function to seed RNG once with the same seed on each processor
-void seed_rand(int commsize) {
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-
+void seed_rand(int commsize, int worldsize) {
     // Only seed once
-    if (commsize == world_size) {
+    if (commsize == worldsize) {
         // Each processor should have the same number for the current minute.
         // There's a small chance the seed will be different between processors
         // if the program runs in a very small window around when the minute
