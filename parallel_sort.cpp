@@ -13,8 +13,6 @@
 // implementation of your parallel sorting
 void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
-    int worldsize;
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
     int p, rank, pivot;
     MPI_Comm_size(MPI_COMM_WORLD, &p);
     MPI_Comm_rank(comm, &rank);
@@ -28,7 +26,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
         return;
 	}
     // Call seeding helper function
-    seed_rand(commsize, worldsize);
+    seed_rand(commsize, p);
 
     // Generate a pivot
     int index = (int)floor(((float)rand()/RAND_MAX) * arrSize * p);
@@ -60,21 +58,22 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     
 
     // Allgather to find total # of elements < and > pivot
-    int* small = (int*) calloc(p,sizeof(int));
-    int* big = (int*) calloc(p,sizeof(int));
-    MPI_Allgather(&le_size, 1, MPI_INT, small, p, MPI_INT, comm);
+    int* small = (int*) calloc(p, sizeof(int));
+    int* big = (int*) calloc(p, sizeof(int));
     MPI_Barrier(comm);
-    MPI_Allgather(&g_size, 1, MPI_INT, big, p, MPI_INT, comm);
+    MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT, comm);
     MPI_Barrier(comm);
+    MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT, comm);
     int smallsum = 0, bigsum = 0;
+    printf("Rank %d sizes: %d %d\n", rank, le_size, g_size);
     for(int i = 0; i < p; i++){
     	smallsum += small[i];
     	bigsum += big[i];
-    	printf("Rank %d: %d %d\n", rank, big[i], small[i]);
+    	printf("Rank %d big/small: %d %d\n", rank, big[i], small[i]);
     }
 
     // Decide # of processors for < and > pivot
-    int l_proc_num = floor(worldsize * smallsum / (smallsum + bigsum));
+    int l_proc_num = ceil(commsize * smallsum / (smallsum + bigsum));
     //int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
@@ -102,7 +101,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int *send_count = (int*) malloc(p * sizeof(int));
     int *rec_disp = (int*) calloc(p, sizeof(int));
     int *rec_count = (int*) malloc(p * sizeof(int));
-    printf("Rank %d before A2A\n", rank);
+    // printf("Rank %d before A2A\n", rank);
     for (int i = 0; i < p; i++) {
 
         if (i > 0) {
@@ -164,13 +163,15 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     }
     
     if (rank < l_proc_num) {
+        MPI_Barrier(comm);
         MPI_Alltoallv(greater, send_count, send_disp, MPI_INT,
             receivearr, rec_count, rec_disp, MPI_INT, comm);
     } else {
+        MPI_Barrier(comm);
         MPI_Alltoallv(lesser, send_count, send_disp, MPI_INT,
             receivearr, rec_count, rec_disp, MPI_INT, comm);
     }
-    printf("Rank %d after A2A\n", rank);
+    // printf("Rank %d after A2A\n", rank);
     // free(space);
     // free(send_count);
     // free(send_disp);
@@ -236,7 +237,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // MPI_Comm_free(&comm);
 
     // Call self recursively
-    parallel_sort(begin, begin + (arrSize * sizeof(int)), newcomm);
+    parallel_sort(begin, end, newcomm);
 }
 
 
