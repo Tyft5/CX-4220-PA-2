@@ -38,7 +38,7 @@ int cmpfunc(const void *a, const void *b);
 
 // void seed_rand(int commsize, int worldsize);
 
-void recursive_sort(int *start, int *end, MPI_Comm comm)
+int recursive_sort(int *start, int *end, int** out, MPI_Comm comm);
 
 
 #endif // PARALLEL_SORT_H
