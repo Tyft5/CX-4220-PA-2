@@ -18,7 +18,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Terminating condition
 	int commsize;
-	int arrSize = (end - begin) / sizeof(int);
+	int arrSize = end - begin;
 	MPI_Comm_size(comm, &commsize);
 	if(commsize == 1){
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
@@ -77,7 +77,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Send < and > arrays to appropriate processors (using alltoall)
     // int** sendarr = (int**)calloc(p, sizeof(int));
-    int* receivearr = (int*)calloc(p, sizeof(int));
+    int* receivearr = (int*)calloc(arrSize, sizeof(int));
     // if(rank < l_proc_num){
     // 	sendarr[rank+l_proc_num] = greater;	
     // } else {
