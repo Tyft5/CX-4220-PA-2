@@ -58,9 +58,8 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     
 
     // Allgather to find total # of elements < and > pivot
-    int* small = (int*) calloc(p, sizeof(int));
-    int* big = (int*) calloc(p, sizeof(int));
-    MPI_Barrier(comm);
+    int* small = (int*) calloc(p,sizeof(int));
+    int* big = (int*) calloc(p,sizeof(int));
     MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT, comm);
     MPI_Barrier(comm);
     MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT, comm);
@@ -69,7 +68,6 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     for(int i = 0; i < p; i++){
     	smallsum += small[i];
     	bigsum += big[i];
-    	printf("Rank %d big/small: %d %d\n", rank, big[i], small[i]);
     }
 
     // Decide # of processors for < and > pivot
@@ -101,7 +99,6 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int *send_count = (int*) malloc(p * sizeof(int));
     int *rec_disp = (int*) calloc(p, sizeof(int));
     int *rec_count = (int*) malloc(p * sizeof(int));
-    // printf("Rank %d before A2A\n", rank);
     for (int i = 0; i < p; i++) {
 
         if (i > 0) {
@@ -171,7 +168,6 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
         MPI_Alltoallv(lesser, send_count, send_disp, MPI_INT,
             receivearr, rec_count, rec_disp, MPI_INT, comm);
     }
-    // printf("Rank %d after A2A\n", rank);
     // free(space);
     // free(send_count);
     // free(send_disp);
