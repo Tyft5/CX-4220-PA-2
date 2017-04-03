@@ -74,8 +74,31 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
-    // Receive array for next recursion
-
+    int** sendarr = (int**)calloc(sizeof(int)*p);
+    int** receivearr = (int**)calloc(sizeof(int)*p);
+    if(rank < l_proc_num){
+    	sendarr[rank+l_proc_num] = &greater;	
+    } else {
+    	sendarr[(rank-l_proc_num)%l_proc_num] = &begin;    
+    }
+    MPI_Alltoall(sendarr, p, MPI_INT,receivearr, p, MPI_INT, comm);	
+    for(int i = 0; i < p; i++){
+    	if(receivearr[i] != 0){
+    		if (rank < l_proc_num) {
+    			begin = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
+    			for (int j = 0; j < small[i]; j++) {
+    				begin[le_size + j] = receivearr[i][j];
+    			}
+    			le_size += small[i];
+    		} else {
+    			greater = (int *) realloc(greater, sizeof(int) * (g_size + big[i]));
+    			for (int j = 0; j < big[i]; j++) {
+    				greater[g_size + j] = receivearr[i][j];
+    			}
+    			g_size += big[i];
+    		}
+    	}
+    }
 
     // Dealloc greater
     if (rank < l_proc_num) {
@@ -87,12 +110,22 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // Create two new communicators
     // MPI_Comm_split
     // Dealloc old comm
-
+    MPI_Comm newcomm;
+    int color;
+    if(rank < l_proc_num){
+    	color = 0;
+    } else {
+    	color = 1;
+    }
+    MPI_Comm_split(comm, color, rank, &newcomm);
+    MPI_Comm_free(&comm);
 
     // Call self recursively
-
-
-
+    if(rank < l_proc_num){
+    	parallel_sort(begin, begin +(le_size*sizeof(int)), &newcomm);
+    } else {
+    	parallel_sort(greater, greater + (g_size*sizeof(int)), &newcomm);
+    }
 }
 
 
