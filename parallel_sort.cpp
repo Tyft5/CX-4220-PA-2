@@ -19,6 +19,18 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // turns over. This is acceptably unlikely for now.
     srand(time(NULL) / 60);
 
+    // Perform sort
+    int *output;
+    recursive_sort(begin, end, &output, comm);
+
+    // Rearrange numbers so that all processors have equal size arrays
+    // Each processor needs to know how many elements the other have
+
+
+    // Copy array into begin (arr is a temp name)
+    for (int i = 0; i < begin - end; i++) {
+        begin[i] = arr[i];
+    }
 
 
     /////////////////////////////////////////////////////////////////
@@ -340,8 +352,10 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
      sendarr[(rank-l_proc_num)%l_proc_num] = begin;    
     }
 
-    // MPI_Alltoall();
+    MPI_Alltoall(sendarr, p, MPI_INT, receivearr, p, MPI_INT, comm);
 
+    // Move greater into begin so all processors have numbers that weren't
+    // send in begin.
     if (rank >= l_proc_num) {
         begin = (int*) realloc(begin, g_size * sizeof(int));
         for (int i = 0; i < g_size; i++) {
@@ -349,6 +363,7 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
         }
     }
 
+    // Add the received numbers onto the existing numbers
     int *dummy;
     for(int i = 0; i < p; i++){
         if(receivearr[i] != 0){
@@ -380,7 +395,7 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
         }
     }
 
-    // Create two new communicators
+    // Create new communicator
     // Dealloc old comm
     MPI_Comm newcomm;
     int color;
@@ -394,7 +409,11 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
 
     // Call self recursively and pass final output back down the stack
     int *output;
-    recursive_sort(begin, end, &output, newcomm);
+    if (rank < l_proc_num) {
+        recursive_sort(begin, begin + (le_size * sizeof(int)), &output, newcomm);
+    } else {
+        recursive_sort(begin, begin + (g_size * sizeof(int)), &output, newcomm);
+    }
     out = &output;
 }
 
