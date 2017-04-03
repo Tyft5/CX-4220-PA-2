@@ -396,15 +396,15 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
 
     // Decide # of processors for < and > pivot
     int l_proc_num = ceil(commsize * smallsum / (smallsum + bigsum));
-    //int g_proc_num = commsize - l_proc_num;
+    int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
     int** sendarr = (int**) calloc(p, sizeof(int*));
     int** receivearr = (int**) calloc(p, sizeof(int*));
     if(rank < l_proc_num){
-     sendarr[rank+l_proc_num] = greater; 
+     sendarr[l_proc_num + (rank % g_proc_num)] = greater; 
     } else {
-     sendarr[(rank-l_proc_num)%l_proc_num] = begin;    
+     sendarr[(rank-l_proc_num) % l_proc_num] = begin;    
     }
 
     MPI_Alltoall(sendarr, p, MPI_INT, receivearr, p, MPI_INT, comm);
@@ -419,6 +419,8 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     }
 
     // Add the received numbers onto the existing numbers
+    printf("Before concat, rank %d\n", rank);
+    MPI_Barrier(comm);
     int *dummy;
     for(int i = 0; i < p; i++){
         if(receivearr[i] != 0){
@@ -431,6 +433,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
                     exit(1);
                 }
 
+                printf("Hello, rank %d\n", rank);
                 for (int j = 0; j < small[i]; j++) {
                     begin[le_size + j] = receivearr[i][j];
                 }
@@ -451,6 +454,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
             }
         }
     }
+    printf("Got here, rank %d\n", rank);
 
     // Create new communicator
     // Dealloc old comm
