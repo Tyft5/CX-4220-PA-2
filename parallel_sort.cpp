@@ -20,7 +20,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 	int commsize;
 	int arrSize = sizeof(begin)/sizeof(begin[0]);
 	MPI_Comm_size(comm, &commsize);
-	if(commsize > 1){
+	if(commsize == 1){
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
 	}
     // Call seeding helper function
