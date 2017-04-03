@@ -71,15 +71,15 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Decide # of processors for < and > pivot
     int l_proc_num = floor(worldsize * smallsum / (smallsum + bigsum));
-    int g_proc_num = commsize - l_proc_num;
+    //int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
-    int** sendarr = (int**)calloc(sizeof(int)*p);
-    int** receivearr = (int**)calloc(sizeof(int)*p);
+    int** sendarr = (int**)calloc(p,sizeof(int));
+    int** receivearr = (int**)calloc(p,sizeof(int));
     if(rank < l_proc_num){
-    	sendarr[rank+l_proc_num] = &greater;	
+    	sendarr[rank+l_proc_num] = greater;	
     } else {
-    	sendarr[(rank-l_proc_num)%l_proc_num] = &begin;    
+    	sendarr[(rank-l_proc_num)%l_proc_num] = begin;    
     }
     MPI_Alltoall(sendarr, p, MPI_INT,receivearr, p, MPI_INT, comm);	
     for(int i = 0; i < p; i++){
@@ -122,9 +122,9 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Call self recursively
     if(rank < l_proc_num){
-    	parallel_sort(begin, begin +(le_size*sizeof(int)), &newcomm);
+    	parallel_sort(begin, begin +(le_size*sizeof(int)), newcomm);
     } else {
-    	parallel_sort(greater, greater + (g_size*sizeof(int)), &newcomm);
+    	parallel_sort(greater, greater + (g_size*sizeof(int)), newcomm);
     }
 }
 
