@@ -21,16 +21,71 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Perform sort
     int *output;
-    recursive_sort(begin, end, &output, comm);
+    int *temp = begin;
+    int arrSize = recursive_sort(temp, end, &output, comm);
+
+    // Communicate local array size
+    int p;
+    int rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &p);
+    MPI_Comm_rank(comm, &rank);
+    int *sizes = (int *) malloc(p * sizeof(int));
+    MPI_Allgather(&arrSize, 1, MPI_INT, sizes, 1, MPI_INT, comm);
+
+    // Communicate local arrays
+    int** arrays = (int **) malloc(p * sizeof(int*));
+    MPI_Allgather(&output, 1, MPI_INT, arrays, 1, MPI_INT, comm);
+
+    int whole_arr[(end - begin + 1) * p];
+    int index = 0;
+    for (int i = 0; i < p; i++) {
+        for (int j = 0; j < sizes[i]; j++) {
+            whole_arr[index++] = arrays[i][j];
+        }
+    }
+
+    int total_size = index + 1;
+    int rem = total_size % p;
+    int start;
+    if (rank < rem) {
+        start = rank * (end - begin);
+    } else {
+        start = rem * (1 + end - begin) + (rank - rem) * (end - begin);
+    }
+
+    for (int i = 0; i < end - begin; i++) {
+        begin[i] = whole_arr[start + i];
+    }
 
     // Rearrange numbers so that all processors have equal size arrays
-    // Each processor needs to know how many elements the other have
+    // int sum = 0, corr_size = end - begin;
+    // for (int i = 0; i <= rank; i++) {
+    //     sum += sizes[i];
+    // }
+    // int to_send = (rank + 1) * (corr_size) - sum;
 
+    // int *send_count = (int *) calloc(p, sizeof(int));
+    // int *send_disp = (int *) calloc(p, sizeof(int));
+    // for (int i = 0; i < p; i++) {
+    //     if (i == rank - 1) {
+    //         for (int j = 0; j < rank; j++) {
+    //             if (sizes[j] < corr_size) {
+    //                 to_send += corr_size - sizes[j];
+    //                 sizes[rank] -= to_send;
+    //                 send_count[j] = to_send;
+    //             }
+    //         }
+    //         if (sizes[rank] > corr_size) {
 
-    // Copy array into begin (arr is a temp name)
-    for (int i = 0; i < begin - end; i++) {
-        begin[i] = arr[i];
-    }
+    //         }
+    //     } else {
+    //         if (sizes[i] < corr_size) {
+    //             sizes[i+1] -= corr_size - sizes[i];
+    //         } else {
+    //             sizes[i+1] += sizes[i] - corr_size;
+    //         }
+    //     }
+    // }
 
 
     /////////////////////////////////////////////////////////////////
@@ -281,7 +336,7 @@ int cmpfunc (const void * a, const void * b)
 //     }
 // }
 
-void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
+int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     int p, rank, pivot, commsize;
     MPI_Comm_size(MPI_COMM_WORLD, &p);
     MPI_Comm_size(comm, &commsize);
@@ -293,7 +348,7 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     if(commsize == 1){
         qsort(begin, arrSize, sizeof(int), cmpfunc);
         out = &begin;
-        return;
+        return end - begin;
     }
 
     // Generate a pivot
@@ -344,8 +399,8 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     //int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
-    int** sendarr = (int**) calloc(p, sizeof(int));
-    int** receivearr = (int**) calloc(p, sizeof(int));
+    int** sendarr = (int**) calloc(p, sizeof(int*));
+    int** receivearr = (int**) calloc(p, sizeof(int*));
     if(rank < l_proc_num){
      sendarr[rank+l_proc_num] = greater; 
     } else {
@@ -372,6 +427,7 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
                 if (dummy) {
                     begin = dummy;
                 } else {
+                    printf("Failed to realloc\n");
                     exit(1);
                 }
 
@@ -384,6 +440,7 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
                 if (dummy) {
                     begin = dummy;
                 } else {
+                    printf("Failed to realloc\n");
                     exit(1);
                 }
 
@@ -409,11 +466,13 @@ void recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
 
     // Call self recursively and pass final output back down the stack
     int *output;
+    int fin_count;
     if (rank < l_proc_num) {
-        recursive_sort(begin, begin + (le_size * sizeof(int)), &output, newcomm);
+        fin_count = recursive_sort(begin, begin + (le_size * sizeof(int)), &output, newcomm);
     } else {
-        recursive_sort(begin, begin + (g_size * sizeof(int)), &output, newcomm);
+        fin_count = recursive_sort(begin, begin + (g_size * sizeof(int)), &output, newcomm);
     }
     out = &output;
+    return fin_count;
 }
 
