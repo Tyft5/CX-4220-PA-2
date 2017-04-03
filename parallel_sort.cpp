@@ -39,7 +39,6 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     	pivot = begin[index%arrSize];
     }
     MPI_Bcast(&pivot, 1, MPI_INT, source, comm);
-    printf("rank %d is working\n", rank);
 
     // Split local array based on pivot
     //  - allocate second array
@@ -61,14 +60,17 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     
 
     // Allgather to find total # of elements < and > pivot
-    int* small = (int*) malloc(sizeof(int) * p);
-    int* big = (int*) malloc(sizeof(int) * p);
+    int* small = (int*) calloc(p,sizeof(int));
+    int* big = (int*) calloc(p,sizeof(int));
     MPI_Allgather(&le_size, 1, MPI_INT, small, p, MPI_INT, comm);
+    MPI_Barrier(comm);
     MPI_Allgather(&g_size, 1, MPI_INT, big, p, MPI_INT, comm);
+    MPI_Barrier(comm);
     int smallsum = 0, bigsum = 0;
     for(int i = 0; i < p; i++){
     	smallsum += small[i];
     	bigsum += big[i];
+    	printf("Rank %d: %d %d\n", rank, big[i], small[i]);
     }
 
     // Decide # of processors for < and > pivot
@@ -100,6 +102,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int *send_count = (int*) malloc(p * sizeof(int));
     int *rec_disp = (int*) calloc(p, sizeof(int));
     int *rec_count = (int*) malloc(p * sizeof(int));
+    printf("Rank %d before A2A\n", rank);
     for (int i = 0; i < p; i++) {
 
         if (i > 0) {
@@ -159,7 +162,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
             }
         }
     }
-
+    
     if (rank < l_proc_num) {
         MPI_Alltoallv(greater, send_count, send_disp, MPI_INT,
             receivearr, rec_count, rec_disp, MPI_INT, comm);
@@ -167,7 +170,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
         MPI_Alltoallv(lesser, send_count, send_disp, MPI_INT,
             receivearr, rec_count, rec_disp, MPI_INT, comm);
     }
-
+    printf("Rank %d after A2A\n", rank);
     // free(space);
     // free(send_count);
     // free(send_disp);
