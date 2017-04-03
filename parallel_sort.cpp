@@ -18,7 +18,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Terminating condition
 	int commsize;
-	int arrSize = sizeof(begin) / sizeof(int);
+	int arrSize = (end - begin) / sizeof(int);
 	MPI_Comm_size(comm, &commsize);
 	if(commsize == 1){
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
@@ -46,17 +46,18 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     //  - keep track of size of both arrays
     //  - realloc
     int num, le_size = 0, g_size = 0;
-    int *greater = (int*) malloc(end - begin);
+    int *greater = (int*) malloc(arrSize * sizeof(int));
+    int *lesser = (int*) malloc(arrSize * sizeof(int));
     for (int i = 0; i < arrSize; i++) {
         num = begin[i];
         if (num <= pivot) {
-            begin[le_size++] = num;
+            lesser[le_size++] = num;
         } else {
             greater[g_size++] = num;
         }
     }
-    begin = (int*) realloc(begin, sizeof(int) * le_size);
-    greater = (int*) realloc(greater, sizeof(int) * g_size);
+    // begin = (int*) realloc(begin, sizeof(int) * le_size);
+    // greater = (int*) realloc(greater, sizeof(int) * g_size);
     
 
     // Allgather to find total # of elements < and > pivot
@@ -75,42 +76,148 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     //int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
-    int** sendarr = (int**)calloc(p,sizeof(int));
-    int** receivearr = (int**)calloc(p,sizeof(int));
-    if(rank < l_proc_num){
-    	sendarr[rank+l_proc_num] = greater;	
-    } else {
-    	sendarr[(rank-l_proc_num)%l_proc_num] = begin;    
-    }
-    MPI_Alltoall(sendarr, p, MPI_INT,receivearr, p, MPI_INT, comm);
+    // int** sendarr = (int**)calloc(p, sizeof(int));
+    int* receivearr = (int*)calloc(p, sizeof(int));
+    // if(rank < l_proc_num){
+    // 	sendarr[rank+l_proc_num] = greater;	
+    // } else {
+    // 	sendarr[(rank-l_proc_num)%l_proc_num] = begin;    
+    // }
 
-    if (rank >= l_proc_num) {
-        begin = (int*) realloc(begin, g_size * sizeof(int));
-        for (int i = 0; i < g_size; i++) {
-            begin[i] = greater[i];
+    int *space = (int*) malloc(sizeof(int) * p);
+    for (int i = 0; i < p; i++) {
+        if (i < l_proc_num) {
+            space[i] = big[i];
+        } else {
+            space[i] = small[i];
         }
     }
 
-    for(int i = 0; i < p; i++){
-    	if(receivearr[i] != 0){
-    		if (rank < l_proc_num) {
-    			begin = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
-    			for (int j = 0; j < small[i]; j++) {
-    				begin[le_size + j] = receivearr[i][j];
-    			}
-    			le_size += small[i];
-    		} else {
-    			begin = (int *) realloc(begin, sizeof(int) * (g_size + big[i]));
-    			for (int j = 0; j < big[i]; j++) {
-    				begin[g_size + j] = receivearr[i][j];
-    			}
-    			g_size += big[i];
-    		}
-    	}
+    int b_send_size = big[rank];
+    int s_send_size = small[rank];
+    int myspace = space[rank];
+    int *send_disp = (int*) calloc(p, sizeof(int));
+    int *send_count = (int*) malloc(p * sizeof(int));
+    int *rec_disp = (int*) calloc(p, sizeof(int));
+    int *rec_count = (int*) malloc(p * sizeof(int));
+    for (int i = 0; i < p; i++) {
+
+        if (i > 0) {
+            send_disp[i] = send_disp[i-1] + send_count[i-1];
+            rec_disp[i] = rec_disp[i-1] + rec_count[i-1];
+        }
+
+        if (rank < l_proc_num) {
+            if (i < l_proc_num) {
+                send_count[i] = 0;
+                rec_count[i] = 0;
+            } else {
+                // Sending counts
+                if (space[i] >= b_send_size) {
+                    send_count[i] = b_send_size;
+                    b_send_size = 0;
+                    space[i] -= b_send_size;
+                } else {
+                    send_count[i] = space[i];
+                    b_send_size -= space[i];
+                    space[i] = 0;
+                }
+
+                // Receiving counts
+                if (myspace >= small[i]) {
+                    rec_count[i] = small[i];
+                    myspace -= small[i];
+                } else {
+                    rec_count[i] = myspace;
+                    myspace = 0;
+                }
+            }
+        } else {
+            if (i >= l_proc_num) {
+                send_count[i] = 0;
+                rec_count[i] = 0;
+            } else {
+                // Sending counts
+                if (space[i] >= s_send_size) {
+                    send_count[i] = s_send_size;
+                    s_send_size = 0;
+                    space[i] -= s_send_size;
+                } else {
+                    send_count[i] = space[i];
+                    s_send_size -= space[i];
+                    space[i] = 0;
+                }
+
+                // Receiving counts
+                if (myspace >= big[i]) {
+                    rec_count[i] = big[i];
+                    myspace -= big[i];
+                } else {
+                    rec_count[i] = myspace;
+                    myspace = 0;
+                }
+            }
+        }
     }
+
+    if (rank < l_proc_num) {
+        MPI_Alltoallv(greater, send_count, send_disp, MPI_INT,
+            receivearr, rec_count, rec_disp, MPI_INT, comm);
+    } else {
+        MPI_Alltoallv(lesser, send_count, send_disp, MPI_INT,
+            receivearr, rec_count, rec_disp, MPI_INT, comm);
+    }
+
+    // free(space);
+    // free(send_count);
+    // free(send_disp);
+    // free(rec_count);
+    // free(rec_disp);
+
+    // if (rank >= l_proc_num) {
+    //     // begin = (int*) realloc(begin, g_size * sizeof(int));
+    //     for (int i = 0; i < g_size; i++) {
+    //         begin[i] = greater[i];
+    //     }
+    // }
+
+    for (int i = 0; i < arrSize; i++) {
+        if (rank < l_proc_num) {
+            if (i < le_size) {
+                begin[i] = lesser[i];
+            } else {
+                begin[i] = receivearr[i - le_size];
+            }
+        } else {
+            if (i < g_size) {
+                begin[i] = greater[i];
+            } else {
+                begin[i] = receivearr[i - g_size];
+            }
+        }
+    }
+
+    // for(int i = 0; i < p; i++){
+    // 	if(receivearr[i] != 0){
+    // 		if (rank < l_proc_num) {
+    // 			begin = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
+    // 			for (int j = 0; j < small[i]; j++) {
+    // 				begin[le_size + j] = receivearr[i][j];
+    // 			}
+    // 			le_size += small[i];
+    // 		} else {
+    // 			begin = (int *) realloc(begin, sizeof(int) * (g_size + big[i]));
+    // 			for (int j = 0; j < big[i]; j++) {
+    // 				begin[g_size + j] = receivearr[i][j];
+    // 			}
+    // 			g_size += big[i];
+    // 		}
+    // 	}
+    // }
 
     // Dealloc greater
     // free(greater);
+    // free(lesser);
 
     // Create two new communicators
     // MPI_Comm_split
@@ -126,11 +233,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // MPI_Comm_free(&comm);
 
     // Call self recursively
-    if(rank < l_proc_num){
-    	parallel_sort(begin, begin + (le_size * sizeof(int)), newcomm);
-    } else {
-    	parallel_sort(begin, begin + (g_size * sizeof(int)), newcomm);
-    }
+    parallel_sort(begin, begin + (arrSize * sizeof(int)), newcomm);
 }
 
 
