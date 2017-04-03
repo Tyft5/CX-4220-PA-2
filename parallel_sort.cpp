@@ -18,16 +18,17 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     // Terminating condition
 	int commsize;
-	int arrSize = sizeof(begin)/sizeof(begin[0]);
+	int arrSize = sizeof(begin) / sizeof(int);
 	MPI_Comm_size(comm, &commsize);
 	if(commsize == 1){
 		qsort(begin, arrSize, sizeof(int), cmpfunc);
+        return;
 	}
     // Call seeding helper function
     seed_rand(commsize, worldsize);
 
     // Generate a pivot
-    int index = floor(rand()/RAND_MAX*arrSize);
+    int index = floor(rand() / RAND_MAX * arrSize);
     int p, rank, pivot;
     MPI_Comm_size(comm, &p);
     MPI_Comm_rank(comm, &rank);
@@ -37,7 +38,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     if(rank == source){
     	pivot = begin[index%p];
     }
-    MPI_Bcast(&pivot,1,MPI_INT,source,comm);
+    MPI_Bcast(&pivot, 1, MPI_INT, source, comm);
 
 
     // Split local array based on pivot
@@ -61,8 +62,8 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     // Allgather to find total # of elements < and > pivot
     int* small = (int*) malloc(sizeof(int) * p);
     int* big = (int*) malloc(sizeof(int) * p);
-    MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT,comm);
-    MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT,comm);
+    MPI_Allgather(&le_size, 1, MPI_INT, small, p, MPI_INT, comm);
+    MPI_Allgather(&g_size, 1, MPI_INT, big, p, MPI_INT, comm);
     int smallsum = 0, bigsum = 0;
     for(int i = 0; i < p; i++){
     	smallsum += small[i];
@@ -81,7 +82,15 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     } else {
     	sendarr[(rank-l_proc_num)%l_proc_num] = begin;    
     }
-    MPI_Alltoall(sendarr, p, MPI_INT,receivearr, p, MPI_INT, comm);	
+    MPI_Alltoall(sendarr, p, MPI_INT,receivearr, p, MPI_INT, comm);
+
+    if (rank >= l_proc_num) {
+        begin = (int*) realloc(begin, g_size * sizeof(int));
+        for (int i = 0; i < g_size; i++) {
+            begin[i] = greater[i];
+        }
+    }
+
     for(int i = 0; i < p; i++){
     	if(receivearr[i] != 0){
     		if (rank < l_proc_num) {
@@ -91,9 +100,9 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     			}
     			le_size += small[i];
     		} else {
-    			greater = (int *) realloc(greater, sizeof(int) * (g_size + big[i]));
+    			begin = (int *) realloc(begin, sizeof(int) * (g_size + big[i]));
     			for (int j = 0; j < big[i]; j++) {
-    				greater[g_size + j] = receivearr[i][j];
+    				begin[g_size + j] = receivearr[i][j];
     			}
     			g_size += big[i];
     		}
@@ -101,11 +110,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     }
 
     // Dealloc greater
-    if (rank < l_proc_num) {
-        free(greater);
-    } else {
-        free(begin);
-    }
+    // free(greater);
 
     // Create two new communicators
     // MPI_Comm_split
@@ -118,13 +123,13 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     	color = 1;
     }
     MPI_Comm_split(comm, color, rank, &newcomm);
-    MPI_Comm_free(&comm);
+    // MPI_Comm_free(&comm);
 
     // Call self recursively
     if(rank < l_proc_num){
-    	parallel_sort(begin, begin +(le_size*sizeof(int)), newcomm);
+    	parallel_sort(begin, begin + (le_size * sizeof(int)), newcomm);
     } else {
-    	parallel_sort(greater, greater + (g_size*sizeof(int)), newcomm);
+    	parallel_sort(begin, begin + (g_size * sizeof(int)), newcomm);
     }
 }
 
