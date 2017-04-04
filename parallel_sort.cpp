@@ -393,17 +393,19 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     // Allgather to find total # of elements < and > pivot
     printf("3, rank %d\n", rank);
     MPI_Barrier(comm);
-    int* small = (int*) malloc(p * sizeof(int));
+    int* small = (int*) malloc(commsize * sizeof(int));
     printf("4, rank %d\n", rank);
     MPI_Barrier(comm);
-    int* big = (int*) malloc(p * sizeof(int));
+    int* big = (int*) malloc(commsize * sizeof(int));
+
     MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT, comm);
     MPI_Barrier(comm);
     MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT, comm);
+
     int smallsum = 0, bigsum = 0;
     printf("Rank %d sizes: %d %d\n", rank, le_size, g_size);
     MPI_Barrier(comm);
-    for(int i = 0; i < p; i++){
+    for(int i = 0; i < commsize; i++){
         smallsum += small[i];
         bigsum += big[i];
     }
@@ -412,6 +414,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     printf("Rank %d sums: %d %d\n", rank, smallsum, bigsum);
     MPI_Barrier(comm);
     int l_proc_num = ceil(commsize * smallsum / (smallsum + bigsum));
+    if (l_proc_num == commsize) l_proc_num--;
     int g_proc_num = commsize - l_proc_num;
 
     // Send < and > arrays to appropriate processors (using alltoall)
@@ -433,12 +436,12 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
 
     // MPI_Alltoall(sendarr, p, MPI_INT, receivearr, p, MPI_INT, comm);
 
-    int *send_counts = (int *) calloc(p, sizeof(int));
-    int *send_disp = (int *) calloc(p, sizeof(int));
-    int *rec_count = (int *) malloc(p * sizeof(int));
-    int *rec_disp = (int *) calloc(p, sizeof(int));
+    int *send_counts = (int *) calloc(commsize, sizeof(int));
+    int *send_disp = (int *) calloc(commsize, sizeof(int));
+    int *rec_count = (int *) malloc(commsize * sizeof(int));
+    int *rec_disp = (int *) calloc(commsize, sizeof(int));
     int *rec_arr = (int *) calloc(smallsum + bigsum, sizeof(int));
-    for (int i = 0; i < p; i++) {
+    for (int i = 0; i < commsize; i++) {
         if (rank < l_proc_num) {
             rec_count[i] = small[i];
             if (i > 0) {
@@ -497,7 +500,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     } else {
         for (int i = 0; i < rank - l_proc_num; i++) { sum += big[i]; }
     }
-    for(int i = 0; i < p; i++){
+    for(int i = 0; i < commsize; i++){
         // if(receivearr[i] != 0){
             if (rank < l_proc_num) {
                 // dummy = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
@@ -516,7 +519,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
                 // }
                 // le_size += small[i];
 
-                while ((c * l_proc_num) + rank < p) {
+                while ((c * l_proc_num) + rank < commsize) {
                     for (int k = 0; k < small[c * l_proc_num + rank]; k++) {
                         newbegin[le_size++] = rec_arr[sum + k];
                     }
