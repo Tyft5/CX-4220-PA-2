@@ -23,11 +23,11 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int rank;
     MPI_Comm_size(MPI_COMM_WORLD, &p);
     MPI_Comm_rank(comm, &rank);
-    unsigned int the_time = time(0);
+    // unsigned int the_time = time(0);
 
     // Perform sort
     int *output;
-    printf("1, rank %d\n", rank);
+    // printf("1, rank %d\n", rank);
     MPI_Barrier(comm);
     int *temp = (int *) malloc((end - begin) * sizeof(int));
     for (int i = 0; i < end - begin; i++) {
@@ -36,20 +36,20 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     int arrSize = recursive_sort(temp, temp + (end - begin), &output, (end-begin-1)*p, comm);
     MPI_Barrier(comm);
-    the_time = time(0);
-    while (time(0) < the_time + 0.2*rank)
-        ;
-    printf("Rank %d: ", rank);
-    for (int i = 0; i < arrSize; i++) {
-        printf("%d ", output[i]);
-    }
-    printf("\n");
+    // the_time = time(0);
+    // while (time(0) < the_time + 0.2*rank)
+    //     ;
+    // printf("Rank %d: ", rank);
+    // for (int i = 0; i < arrSize; i++) {
+    //     printf("%d ", output[i]);
+    // }
+    // printf("\n");
 
     // Communicate local array size
     int *sizes = (int *) malloc(p * sizeof(int));
     MPI_Allgather(&arrSize, 1, MPI_INT, sizes, 1, MPI_INT, comm);
 
-    printf("Sizes allgather done rank %d\n", rank);
+    // printf("Sizes allgather done rank %d\n", rank);
     // the_time = time(0);
     // while (time(0) < (the_time + 0.5));
 
@@ -61,7 +61,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
 
     int *send_disp = (int *) calloc(p, sizeof(int));
     int *send_count = (int *) malloc(p * sizeof(int));
-    int *rec_disp = (int *) malloc(p * sizeof(int));
+    int *rec_disp = (int *) calloc(p, sizeof(int));
     int *rec_arr = (int *) malloc((end - begin + 1) * p * sizeof(int));
     int total_size = 0;
     for (int i = 0; i < p; i++) {
@@ -74,7 +74,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     MPI_Alltoallv(output, send_count, send_disp, MPI_INT,
         rec_arr, sizes, rec_disp, MPI_INT, comm);
 
-    printf("arrays allgather done rank %d\n", rank);
+    // printf("arrays allgather done rank %d\n", rank);
     // the_time = time(0);
     // while (time(0) < (the_time + 1));
 
@@ -91,9 +91,9 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     //     }
     // }
 
-    printf("whole_arr done %d\n", rank);
-    the_time = time(0);
-    while (time(0) < (the_time + 1));
+    // printf("whole_arr done %d\n", rank);
+    // the_time = time(0);
+    // while (time(0) < (the_time + 1));
 
     int rem = total_size % p;
     int start;
@@ -393,25 +393,25 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
 
-    unsigned int the_time;
+    // unsigned int the_time;
     int arrSize = (end - begin);
 
     // the_time = time(0);
     // while (time(0) < the_time + g_rank)
         ;
     // if (g_rank == 3) {
-        printf("\nLocal array global rank %d: ", g_rank);
-        for (int i = 0; i < arrSize; i++) {
-            printf("%d ", begin[i]);
-        }
-        printf("\n\n");
+        // printf("\nLocal array global rank %d: ", g_rank);
+        // for (int i = 0; i < arrSize; i++) {
+        //     printf("%d ", begin[i]);
+        // }
+        // printf("\n\n");
     // }
 
     // Terminating condition
     if(commsize == 1){
         qsort(begin, arrSize, sizeof(int), cmpfunc);
         *out = begin;
-        printf("Done, rank %d %d\n", rank, g_rank);
+        // printf("Done, rank %d %d\n", rank, g_rank);
         return end - begin;
     }
     int rand_num, source, l_proc_num, g_proc_num = 0;
@@ -446,8 +446,8 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         //  - keep track of size of both arrays
         //  - realloc
         
-        printf("2, rank %d %d\n", rank, g_rank);
-        MPI_Barrier(comm);
+        // printf("2, rank %d %d\n", rank, g_rank);
+        // MPI_Barrier(comm);
         // int *lesser = (int*) malloc(arrSize * sizeof(int));
         for (int i = 0; i < arrSize; i++) {
             num = begin[i];
@@ -461,14 +461,14 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         // greater = (int*) realloc(greater, sizeof(int) * g_size);
         
         // Allgather to find total # of elements < and > pivot
-        printf("3, rank %d %d\n", rank, g_rank);
-        MPI_Barrier(comm);
-        printf("4, rank %d %d\n", rank, g_rank);
-        MPI_Barrier(comm);
+        // printf("3, rank %d %d\n", rank, g_rank);
+        // MPI_Barrier(comm);
+        // printf("4, rank %d %d\n", rank, g_rank);
+        // MPI_Barrier(comm);
 
-        if (rank == commsize - 1) {
-            printf("Rank %d in comm: le_size %d\n", rank, le_size);
-        }
+        // if (rank == commsize - 1) {
+        //     printf("Rank %d in comm: le_size %d\n", rank, le_size);
+        // }
 
         MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT, comm);
         MPI_Barrier(comm);
@@ -476,13 +476,13 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
 
         MPI_Barrier(comm);
         smallsum = 0;
-        bigsum = 0;
-        the_time = time(0);
-        while (time(0) < the_time + (0.5 * g_rank))
-            ;
-        printf("Rank %d, small: ", rank);
+        // bigsum = 0;
+        // the_time = time(0);
+        // while (time(0) < the_time + (0.5 * g_rank))
+        //     ;
+        // printf("Rank %d, small: ", rank);
         for(int i = 0; i < commsize; i++){
-            printf("%d ", small[i]);
+            // printf("%d ", small[i]);
             smallsum += small[i];
             bigsum += big[i];
         }
@@ -498,25 +498,25 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             g_proc_num = 1;
         }
 
-        printf("\nRank %d, Pivot: %d\n", g_rank, pivot);
-        printf("Rank %d, l/g proc num: %d %d\n", g_rank, l_proc_num, g_proc_num);
-        printf("Rank %d, commsize: %d\n", g_rank, commsize);
-        printf("Rank %d, le/g_size: %d, %d\n\n", g_rank, le_size, g_size);
+        // printf("\nRank %d, Pivot: %d\n", g_rank, pivot);
+        // printf("Rank %d, l/g proc num: %d %d\n", g_rank, l_proc_num, g_proc_num);
+        // printf("Rank %d, commsize: %d\n", g_rank, commsize);
+        // printf("Rank %d, le/g_size: %d, %d\n\n", g_rank, le_size, g_size);
 
     }
 
-    printf("Rank %d %d sums: %d %d\n", rank, g_rank, smallsum, bigsum);
-    printf("Rank %d %d sizes: %d %d\n", rank, g_rank, le_size, g_size);
+    // printf("Rank %d %d sums: %d %d\n", rank, g_rank, smallsum, bigsum);
+    // printf("Rank %d %d sizes: %d %d\n", rank, g_rank, le_size, g_size);
 
     // printf("l_proc_num: %d\n", l_proc_num);
 
     // Send < and > arrays to appropriate processors (using alltoall)
-    printf("5, rank %d %d\n", rank, g_rank);
-    MPI_Barrier(comm);
-    // int** sendarr = (int**) malloc(p, sizeof(int*));
+    // printf("5, rank %d %d\n", rank, g_rank);
+    // MPI_Barrier(comm);
+    // // int** sendarr = (int**) malloc(p, sizeof(int*));
 
-    printf("6, rank %d %d\n", rank, g_rank);
-    MPI_Barrier(comm);
+    // printf("6, rank %d %d\n", rank, g_rank);
+    // MPI_Barrier(comm);
     
     // int** receivearr = (int**) calloc(p, sizeof(int*));
     // if(rank < l_proc_num){
@@ -574,8 +574,8 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
 
 
 
-    printf("7, rank %d %d\n", rank, g_rank);
-    MPI_Barrier(comm);
+    // printf("7, rank %d %d\n", rank, g_rank);
+    // MPI_Barrier(comm);
 
     if (rank < l_proc_num) {
         send_counts[l_proc_num + (rank % g_proc_num)] = g_size;
@@ -583,37 +583,38 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             send_disp[i] = g_size;
         }
 
-        the_time = time(0);
-        while (time(0) < the_time + (0.5 * g_rank))
-            ;
+        // the_time = time(0);
+        // while (time(0) < the_time + (0.5 * g_rank))
+        //     ;
         // if (rank == 3) {
-            printf("Rank: %d", g_rank);
-            printf("\nRand: %d", rand_num);
-            printf("\nPivot: %d", pivot);
-            // printf("\nIndex: %d", index);
-            printf("\nBegin: ");
-            for (int i = 0; i < le_size; i++) {
-                printf("%d ", begin[i]);
-            }
-            printf("\nSend Counts: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", send_counts[i]);
-            }
-            printf("\nSend disp: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", send_disp[i]);
-            }
-            printf("\nRec count: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", rec_count[i]);
-            }
-            printf("\nRec disp: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", rec_disp[i]);
-            }
-            printf("\nRec_sum: %d", rec_sum);
-            printf("\n\n");
+            // printf("Rank: %d", g_rank);
+            // printf("\nRand: %d", rand_num);
+            // printf("\nPivot: %d", pivot);
+            // // printf("\nIndex: %d", index);
+            // printf("\nBegin: ");
+            // for (int i = 0; i < le_size; i++) {
+            //     printf("%d ", begin[i]);
+            // }
+            // printf("\nSend Counts: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", send_counts[i]);
+            // }
+            // printf("\nSend disp: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", send_disp[i]);
+            // }
+            // printf("\nRec count: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", rec_count[i]);
+            // }
+            // printf("\nRec disp: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", rec_disp[i]);
+            // }
+            // printf("\nRec_sum: %d", rec_sum);
+            // printf("\n\n");
 
+        MPI_Barrier(comm);
         MPI_Alltoallv(greater, send_counts, send_disp, MPI_INT,
             rec_arr, rec_count, rec_disp, MPI_INT, comm);
     } else {
@@ -622,43 +623,44 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             send_disp[i] = le_size;
         }
 
-        the_time = time(0);
-        while (time(0) < the_time + (0.5 * g_rank))
-            ;
+        // the_time = time(0);
+        // while (time(0) < the_time + (0.5 * g_rank))
+        //     ;
         // if (rank == 3) {
-            printf("Rank: %d", g_rank);
-            printf("\nRand: %d", rand_num);
-            printf("\nPivot: %d", pivot);
-            // printf("\nIndex: %d", index);
-            printf("\nBegin: ");
-            for (int i = 0; i < le_size; i++) {
-                printf("%d ", begin[i]);
-            }
-            printf("\nSend Counts: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", send_counts[i]);
-            }
-            printf("\nSend disp: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", send_disp[i]);
-            }
-            printf("\nRec count: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", rec_count[i]);
-            }
-            printf("\nRec disp: ");
-            for (int i = 0; i < commsize; i++) {
-                printf("%d ", rec_disp[i]);
-            }
-            printf("\nRec_sum: %d", rec_sum);
-            printf("\n\n");
+            // printf("Rank: %d", g_rank);
+            // printf("\nRand: %d", rand_num);
+            // printf("\nPivot: %d", pivot);
+            // // printf("\nIndex: %d", index);
+            // printf("\nBegin: ");
+            // for (int i = 0; i < le_size; i++) {
+            //     printf("%d ", begin[i]);
+            // }
+            // printf("\nSend Counts: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", send_counts[i]);
+            // }
+            // printf("\nSend disp: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", send_disp[i]);
+            // }
+            // printf("\nRec count: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", rec_count[i]);
+            // }
+            // printf("\nRec disp: ");
+            // for (int i = 0; i < commsize; i++) {
+            //     printf("%d ", rec_disp[i]);
+            // }
+            // printf("\nRec_sum: %d", rec_sum);
+            // printf("\n\n");
         // }
 
+        MPI_Barrier(comm);
         MPI_Alltoallv(begin, send_counts, send_disp, MPI_INT,
             rec_arr, rec_count, rec_disp, MPI_INT, comm);
     }
 
-    printf("Before realloc/concat, rank %d %d\n", rank, g_rank);
+    // printf("Before realloc/concat, rank %d %d\n", rank, g_rank);
     MPI_Barrier(comm);
     // Move greater into begin so all processors have numbers that weren't
     // send in begin.
@@ -683,14 +685,14 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         g_size += rec_sum;
     }
 
-    MPI_Barrier(comm);
+    // MPI_Barrier(comm);
     // if (g_rank == 3) {
-        printf("Pivot: %d\n", pivot);
-        printf("\nReceive array global rank %d: ", g_rank);
-        for (int i = 0; i < rec_sum; i++) {
-            printf("%d ", rec_arr[i]);
-        }
-        printf("\n\n");
+        // printf("Pivot: %d\n", pivot);
+        // printf("\nReceive array global rank %d: ", g_rank);
+        // for (int i = 0; i < rec_sum; i++) {
+        //     printf("%d ", rec_arr[i]);
+        // }
+        // printf("\n\n");
     // }
 
     // Add the received numbers onto the existing numbers
@@ -761,7 +763,7 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             // }
         //}
     // }
-    printf("After concat, rank %d %d\n", rank, g_rank);
+    // printf("After concat, rank %d %d\n", rank, g_rank);
 
     // Create new communicator
     // Dealloc old comm
