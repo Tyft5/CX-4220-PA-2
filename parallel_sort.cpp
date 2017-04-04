@@ -23,6 +23,7 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int rank;
     MPI_Comm_size(MPI_COMM_WORLD, &p);
     MPI_Comm_rank(comm, &rank);
+    unsigned int the_time = time(0);
 
     // Perform sort
     int *output;
@@ -38,9 +39,17 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     int *sizes = (int *) malloc(p * sizeof(int));
     MPI_Allgather(&arrSize, 1, MPI_INT, sizes, 1, MPI_INT, comm);
 
+    printf("Sizes allgather done\n");
+    the_time = time(0);
+    while (time(0) < (the_time + 0.5));
+
     // Communicate local arrays
     int** arrays = (int **) malloc(p * sizeof(int*));
     MPI_Allgather(&output, 1, MPI_INT, arrays, 1, MPI_INT, comm);
+
+    printf("arrays allgather done\n");
+    the_time = time(0);
+    while (time(0) < (the_time + 1));
 
     int whole_arr[(end - begin + 1) * p];
     int index = 0;
@@ -49,6 +58,10 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
             whole_arr[index++] = arrays[i][j];
         }
     }
+
+    printf("whole_arr done\n");
+    the_time = time(0);
+    while (time(0) < (the_time + 1));
 
     int total_size = index + 1;
     int rem = total_size % p;
@@ -343,88 +356,107 @@ int cmpfunc (const void * a, const void * b)
 // }
 
 int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
-    int p, rank, pivot, commsize;
+    int p, rank, pivot, commsize, g_rank;
     MPI_Comm_size(MPI_COMM_WORLD, &p);
     MPI_Comm_size(comm, &commsize);
     MPI_Comm_rank(comm, &rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
 
     unsigned int the_time;
     int arrSize = (end - begin);
+
+    if (g_rank == 3) {
+        printf("\nLocal array global rank 3: ");
+        for (int i = 0; i < arrSize; i++) {
+            printf("%d ", begin[i]);
+        }
+        printf("\n\n");
+    }
 
     // Terminating condition
     if(commsize == 1){
         qsort(begin, arrSize, sizeof(int), cmpfunc);
         out = &begin;
+        printf("Done, rank %d %d\n", rank, g_rank);
         return end - begin;
     }
-
-    // Generate a pivot
-    int index = (int)floor(((float)rand()/RAND_MAX) * arrSize * p);
-
-    // Check for pivot in local array
-    // If you have the pivot, broadcast it, otherwise receive it
-    int source = floor(index/arrSize);
-    if(rank == source){
-        pivot = begin[index%arrSize];
-    }
-    MPI_Bcast(&pivot, 1, MPI_INT, source, comm);
-
-    // Split local array based on pivot
-    //  - allocate second array
-    //  - keep track of size of both arrays
-    //  - realloc
+    int rand_num, index, source, g_proc_num = 0;
     int num, le_size = 0, g_size = 0;
-    printf("2, rank %d\n", rank);
-    MPI_Barrier(comm);
+    int *small = (int*) malloc(commsize * sizeof(int));
+    int *big = (int*) malloc(commsize * sizeof(int));
     int *greater = (int*) malloc(arrSize * sizeof(int));
-    // int *lesser = (int*) malloc(arrSize * sizeof(int));
-    for (int i = 0; i < arrSize; i++) {
-        num = begin[i];
-        if (num <= pivot) {
-            begin[le_size++] = num;
-        } else {
-            greater[g_size++] = num;
-        }
-    }
-    // begin = (int*) realloc(begin, sizeof(int) * le_size);
-    // greater = (int*) realloc(greater, sizeof(int) * g_size);
-    
-
-    // Allgather to find total # of elements < and > pivot
-    printf("3, rank %d\n", rank);
-    MPI_Barrier(comm);
-    int* small = (int*) malloc(commsize * sizeof(int));
-    printf("4, rank %d\n", rank);
-    MPI_Barrier(comm);
-    int* big = (int*) malloc(commsize * sizeof(int));
-
-    MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT, comm);
-    MPI_Barrier(comm);
-    MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT, comm);
-
     int smallsum = 0, bigsum = 0;
-    printf("Rank %d sizes: %d %d\n", rank, le_size, g_size);
-    MPI_Barrier(comm);
-    for(int i = 0; i < commsize; i++){
-        smallsum += small[i];
-        bigsum += big[i];
+    int l_proc_num;
+    while (g_proc_num == 0) {
+        // Generate a pivot
+        rand_num = rand();
+        rand_num = rand();
+        index = (int)floor((((float)rand_num)/RAND_MAX) * arrSize * commsize);
+
+        // Check for pivot in local array
+        // If you have the pivot, broadcast it, otherwise receive it
+        source = floor(index/arrSize);
+        if(rank == source){
+            pivot = begin[index%arrSize];
+        }
+        MPI_Barrier(comm);
+        MPI_Bcast(&pivot, 1, MPI_INT, source, comm);
+
+        // Split local array based on pivot
+        //  - allocate second array
+        //  - keep track of size of both arrays
+        //  - realloc
+        
+        printf("2, rank %d %d\n", rank, g_rank);
+        MPI_Barrier(comm);
+        // int *lesser = (int*) malloc(arrSize * sizeof(int));
+        for (int i = 0; i < arrSize; i++) {
+            num = begin[i];
+            if (num <= pivot) {
+                begin[le_size++] = num;
+            } else {
+                greater[g_size++] = num;
+            }
+        }
+        // begin = (int*) realloc(begin, sizeof(int) * le_size);
+        // greater = (int*) realloc(greater, sizeof(int) * g_size);
+        
+        // Allgather to find total # of elements < and > pivot
+        printf("3, rank %d %d\n", rank, g_rank);
+        MPI_Barrier(comm);
+        printf("4, rank %d %d\n", rank, g_rank);
+        MPI_Barrier(comm);
+
+        MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT, comm);
+        MPI_Barrier(comm);
+        MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT, comm);
+
+        MPI_Barrier(comm);
+        smallsum = 0;
+        bigsum = 0;
+        for(int i = 0; i < commsize; i++){
+            smallsum += small[i];
+            bigsum += big[i];
+        }
+
+        // Decide # of processors for < and > pivot
+        MPI_Barrier(comm);
+        l_proc_num = (int) ceil(float(commsize * smallsum) / (smallsum + bigsum));
+        // if (l_proc_num == commsize) l_proc_num--;
+        g_proc_num = commsize - l_proc_num;
     }
 
-    // Decide # of processors for < and > pivot
-    printf("Rank %d sums: %d %d\n", rank, smallsum, bigsum);
-    MPI_Barrier(comm);
-    int l_proc_num = ceil(commsize * smallsum / (smallsum + bigsum));
-    if (l_proc_num == commsize) l_proc_num--;
-    int g_proc_num = commsize - l_proc_num;
+    printf("Rank %d %d sums: %d %d\n", rank, g_rank, smallsum, bigsum);
+    printf("Rank %d %d sizes: %d %d\n", rank, g_rank, le_size, g_size);
+
+    // printf("l_proc_num: %d\n", l_proc_num);
 
     // Send < and > arrays to appropriate processors (using alltoall)
-    printf("5, rank %d\n", rank);
+    printf("5, rank %d %d\n", rank, g_rank);
     MPI_Barrier(comm);
     // int** sendarr = (int**) malloc(p, sizeof(int*));
 
-    printf("6, rank %d\n", rank);
-    the_time = time(0);
-    while (time(0) < (the_time + 2));
+    printf("6, rank %d %d\n", rank, g_rank);
     MPI_Barrier(comm);
     
     // int** receivearr = (int**) calloc(p, sizeof(int*));
@@ -441,68 +473,139 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     int *rec_count = (int *) malloc(commsize * sizeof(int));
     int *rec_disp = (int *) calloc(commsize, sizeof(int));
     int *rec_arr = (int *) calloc(smallsum + bigsum, sizeof(int));
+    int ind, rec_sum = 0;
     for (int i = 0; i < commsize; i++) {
         if (rank < l_proc_num) {
-            rec_count[i] = small[i];
+            ind = ((i+1) * l_proc_num) + rank;
+            if (ind < commsize) {
+                rec_count[ind] = small[ind];
+                // rec_sum += small[ind];
+            } else {
+                rec_count[i] = 0;
+            }
             if (i > 0) {
-                rec_disp[i] = rec_disp[i - 1] + small[i];
+                rec_disp[i] = rec_disp[i - 1] + rec_count[i-1];
             }
             // else {
             //     rec_disp[i] = small[i];
             // }
         } else {
-            rec_count[i] = big[i];
+            // rec_count[i] = big[i];
+            ind = rank - l_proc_num + (i * g_proc_num);
+            if (ind < l_proc_num) {
+                rec_count[ind] = big[ind];
+                // rec_sum += big[ind];
+            } else {
+                rec_count[i] = 0;
+            }
             if (i > 0) {
-                rec_disp[i] = rec_disp[i - 1] + big[i];
+                rec_disp[i] = rec_disp[i - 1] + rec_count[i-1];
             }
             // else {
             //     rec_disp[i] = big[i];
             // }
         }
+        rec_sum += rec_count[i];
     }
+
+
+
+    printf("7, rank %d %d\n", rank, g_rank);
+    MPI_Barrier(comm);
 
     if (rank < l_proc_num) {
         send_counts[l_proc_num + (rank % g_proc_num)] = g_size;
+        for (int i = l_proc_num + (rank % g_proc_num) + 1; i < commsize; i++) {
+            send_disp[i] = g_size;
+        }
+        MPI_Barrier(comm);
         MPI_Alltoallv(greater, send_counts, send_disp, MPI_INT,
             rec_arr, rec_count, rec_disp, MPI_INT, comm);
     } else {
         send_counts[(rank-l_proc_num) % l_proc_num] = le_size;
+        for (int i = (rank-l_proc_num) % l_proc_num + 1; i < commsize; i++) {
+            send_disp[i] = le_size;
+        }
+
+        if (rank == 3) {
+            printf("\nRand: %d", rand_num);
+            printf("\nPivot: %d", pivot);
+            printf("\nIndex: %d", index);
+            printf("\nBegin: ");
+            for (int i = 0; i < le_size; i++) {
+                printf("%d ", begin[i]);
+            }
+            printf("\nSend Counts: ");
+            for (int i = 0; i < commsize; i++) {
+                printf("%d ", send_counts[i]);
+            }
+            printf("\nSend disp: ");
+            for (int i = 0; i < commsize; i++) {
+                printf("%d ", send_disp[i]);
+            }
+            printf("\nRec count: ");
+            for (int i = 0; i < commsize; i++) {
+                printf("%d ", rec_count[i]);
+            }
+            printf("\nRec disp: ");
+            for (int i = 0; i < commsize; i++) {
+                printf("%d ", rec_disp[i]);
+            }
+            printf("\nRec_sum: %d", rec_sum);
+            printf("\n\n");
+        }
+
+        MPI_Barrier(comm);
         MPI_Alltoallv(begin, send_counts, send_disp, MPI_INT,
             rec_arr, rec_count, rec_disp, MPI_INT, comm);
     }
 
-    printf("Before realloc, rank %d\n", rank);
+    printf("Before realloc/concat, rank %d %d\n", rank, g_rank);
     MPI_Barrier(comm);
     // Move greater into begin so all processors have numbers that weren't
     // send in begin.
     // begin = (int*) realloc(begin, (smallsum + bigsum) * sizeof(int));
     int *newbegin = (int *) malloc((smallsum + bigsum) * sizeof(int));
-    if (rank >= l_proc_num) {
+    if (rank < l_proc_num) {
         // begin = (int*) realloc(begin, g_size * sizeof(int));
-        for (int i = 0; i < g_size; i++) {
-            newbegin[i] = greater[i];
-        }
-    } else {
         for (int i = 0; i < le_size; i++) {
             newbegin[i] = begin[i];
         }
+        for (int i = 0; i < rec_sum; i++) {
+            newbegin[le_size + i] = rec_arr[i];
+        }
+        le_size += rec_sum;
+    } else {
+        for (int i = 0; i < g_size; i++) {
+            newbegin[i] = greater[i];
+        }
+        for (int i = 0; i < rec_sum; i++) {
+            newbegin[g_size + i] = rec_arr[i];
+        }
+        g_size += rec_sum;
+    }
+
+    if (g_rank == 3) {
+        printf("Pivot: %d\n", pivot);
+        printf("\nReceive array global rank 3: ");
+        for (int i = 0; i < rec_sum; i++) {
+            printf("%d ", rec_arr[i]);
+        }
+        printf("\n\n");
     }
 
     // Add the received numbers onto the existing numbers
-    printf("Before concat, rank %d\n", rank);
-    MPI_Barrier(comm);
-    the_time = time(0);
-    while (time(0) < (the_time + 2));
+
     // int *dummy;
-    int sum = 0, c = 1, d = 0;
-    if (rank < l_proc_num) {
-        for (int i = 0; i < l_proc_num + rank; i++) { sum += small[i]; }
-    } else {
-        for (int i = 0; i < rank - l_proc_num; i++) { sum += big[i]; }
-    }
-    for(int i = 0; i < commsize; i++){
+    // int sum = 0, c = 1, d = 0;
+    // if (rank < l_proc_num) {
+    //     for (int i = 0; i < l_proc_num + rank; i++) { sum += small[i]; }
+    // } else {
+    //     for (int i = 0; i < rank - l_proc_num; i++) { sum += big[i]; }
+    // }
+    // for(int i = 0; i < commsize; i++){
         // if(receivearr[i] != 0){
-            if (rank < l_proc_num) {
+            // if (rank < l_proc_num) {
                 // dummy = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
                 // if (dummy) {
                 //     begin = dummy;
@@ -519,17 +622,17 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
                 // }
                 // le_size += small[i];
 
-                while ((c * l_proc_num) + rank < commsize) {
-                    for (int k = 0; k < small[c * l_proc_num + rank]; k++) {
-                        newbegin[le_size++] = rec_arr[sum + k];
-                    }
-                    for (int l = c * l_proc_num + rank; l < (c+1) * l_proc_num + rank; l++) {
-                        sum += small[l];
-                    }
-                    c++;
-                }
+                // while ((c * l_proc_num) + rank < commsize) {
+                //     for (int k = 0; k < small[c * l_proc_num + rank]; k++) {
+                //         newbegin[le_size++] = rec_arr[sum + k];
+                //     }
+                //     for (int l = c * l_proc_num + rank; l < (c+1) * l_proc_num + rank; l++) {
+                //         sum += small[l];
+                //     }
+                //     c++;
+                // }
 
-            } else {
+            // } else {
                 // dummy = (int *) realloc(begin, sizeof(int) * (g_size + big[i]));
                 // if (dummy) {
                 //     begin = dummy;
@@ -546,20 +649,20 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
                 // }
                 // g_size += big[i];
 
-                while (rank - l_proc_num + (d * g_proc_num) < l_proc_num) {
-                    for (int k = 0; k < big[rank - l_proc_num + (d * g_proc_num)]; k++) {
-                        newbegin[g_size++] = rec_arr[sum + k];
-                    }
-                    for (int l = rank - l_proc_num + (d * g_proc_num);
-                            l < rank - l_proc_num + ((d+1) * g_proc_num); l++) {
-                        sum += big[l];
-                    }
-                    d++;
-                }
-            }
+                // while (rank - l_proc_num + (d * g_proc_num) < l_proc_num) {
+                //     for (int k = 0; k < big[rank - l_proc_num + (d * g_proc_num)]; k++) {
+                //         newbegin[g_size++] = rec_arr[sum + k];
+                //     }
+                //     for (int l = rank - l_proc_num + (d * g_proc_num);
+                //             l < rank - l_proc_num + ((d+1) * g_proc_num); l++) {
+                //         sum += big[l];
+                //     }
+                //     d++;
+                // }
+            // }
         //}
-    }
-    printf("After concat, rank %d\n", rank);
+    // }
+    printf("After concat, rank %d %d\n", rank, g_rank);
 
     // Create new communicator
     // Dealloc old comm
@@ -570,6 +673,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     } else {
         color = 1;
     }
+    MPI_Barrier(comm);
     MPI_Comm_split(comm, color, rank, &newcomm);
     // MPI_Comm_free(&comm);
 
@@ -579,14 +683,17 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
         newbegin = (int *) realloc(newbegin, g_size * sizeof(int));
     }
 
+    the_time = time(0);
+    while (time(0) < (the_time + 1));
+
     // Call self recursively and pass final output back down the stack
     int *output;
     int fin_count;
     if (rank < l_proc_num) {
-        fin_count = recursive_sort(newbegin, newbegin + (le_size * sizeof(int)),
+        fin_count = recursive_sort(newbegin, newbegin + le_size,
             &output, newcomm);
     } else {
-        fin_count = recursive_sort(newbegin, newbegin + (g_size * sizeof(int)),
+        fin_count = recursive_sort(newbegin, newbegin + g_size,
             &output, newcomm);
     }
     out = &output;
