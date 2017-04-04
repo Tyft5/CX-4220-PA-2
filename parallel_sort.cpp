@@ -389,6 +389,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT, comm);
     int smallsum = 0, bigsum = 0;
     printf("Rank %d sizes: %d %d\n", rank, le_size, g_size);
+    MPI_Barrier(comm);
     for(int i = 0; i < p; i++){
         smallsum += small[i];
         bigsum += big[i];
@@ -409,10 +410,13 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
 
     MPI_Alltoall(sendarr, p, MPI_INT, receivearr, p, MPI_INT, comm);
 
+    printf("Before realloc, rank %d\n", rank);
+    MPI_Barrier(comm);
     // Move greater into begin so all processors have numbers that weren't
     // send in begin.
+    begin = (int*) realloc(begin, (smallsum + bigsum) * sizeof(int));
     if (rank >= l_proc_num) {
-        begin = (int*) realloc(begin, g_size * sizeof(int));
+        // begin = (int*) realloc(begin, g_size * sizeof(int));
         for (int i = 0; i < g_size; i++) {
             begin[i] = greater[i];
         }
@@ -421,31 +425,33 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
     // Add the received numbers onto the existing numbers
     printf("Before concat, rank %d\n", rank);
     MPI_Barrier(comm);
-    int *dummy;
+    // int *dummy;
     for(int i = 0; i < p; i++){
         if(receivearr[i] != 0){
             if (rank < l_proc_num) {
-                dummy = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
-                if (dummy) {
-                    begin = dummy;
-                } else {
-                    printf("Failed to realloc\n");
-                    exit(1);
-                }
+                // dummy = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
+                // if (dummy) {
+                //     begin = dummy;
+                // } else {
+                //     printf("Failed to realloc\n");
+                //     exit(1);
+                // }
+                begin = (int *) realloc(begin, sizeof(int) * (le_size + small[i]));
 
-                printf("Hello, rank %d\n", rank);
+                printf("In loop, rank %d\n", rank);
                 for (int j = 0; j < small[i]; j++) {
                     begin[le_size + j] = receivearr[i][j];
                 }
                 le_size += small[i];
             } else {
-                dummy = (int *) realloc(begin, sizeof(int) * (g_size + big[i]));
-                if (dummy) {
-                    begin = dummy;
-                } else {
-                    printf("Failed to realloc\n");
-                    exit(1);
-                }
+                // dummy = (int *) realloc(begin, sizeof(int) * (g_size + big[i]));
+                // if (dummy) {
+                //     begin = dummy;
+                // } else {
+                //     printf("Failed to realloc\n");
+                //     exit(1);
+                // }
+                begin = (int *) realloc(begin, sizeof(int) * (g_size + big[i]));
 
                 for (int j = 0; j < big[i]; j++) {
                     begin[g_size + j] = receivearr[i][j];
@@ -454,7 +460,7 @@ int recursive_sort(int *begin, int *end, int** out, MPI_Comm comm) {
             }
         }
     }
-    printf("Got here, rank %d\n", rank);
+    printf("After concat, rank %d\n", rank);
 
     // Create new communicator
     // Dealloc old comm
