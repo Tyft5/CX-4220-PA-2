@@ -50,8 +50,8 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
     MPI_Allgather(&arrSize, 1, MPI_INT, sizes, 1, MPI_INT, comm);
 
     printf("Sizes allgather done rank %d\n", rank);
-    the_time = time(0);
-    while (time(0) < (the_time + 0.5));
+    // the_time = time(0);
+    // while (time(0) < (the_time + 0.5));
 
     // Communicate local arrays
     // int** arrays = (int **) malloc(p * sizeof(int*));
@@ -75,8 +75,8 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
         rec_arr, sizes, rec_disp, MPI_INT, comm);
 
     printf("arrays allgather done rank %d\n", rank);
-    the_time = time(0);
-    while (time(0) < (the_time + 1));
+    // the_time = time(0);
+    // while (time(0) < (the_time + 1));
 
     // int *whole_arr = (int *) malloc((end - begin + 1) * p * sizeof(int));
     // int *arr;
@@ -410,7 +410,7 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
     // Terminating condition
     if(commsize == 1){
         qsort(begin, arrSize, sizeof(int), cmpfunc);
-        out = &begin;
+        *out = begin;
         printf("Done, rank %d %d\n", rank, g_rank);
         return end - begin;
     }
@@ -781,7 +781,7 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         fin_count = recursive_sort(newbegin, newbegin + g_size,
             &output, bigsum, newcomm);
     }
-    out = &output;
+    *out = output;
     return fin_count;
 }
 
