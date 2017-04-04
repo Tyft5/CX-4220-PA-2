@@ -393,7 +393,7 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
 
-    // unsigned int the_time;
+    unsigned int the_time;
     int arrSize = (end - begin);
 
     // the_time = time(0);
@@ -466,6 +466,10 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         printf("4, rank %d %d\n", rank, g_rank);
         MPI_Barrier(comm);
 
+        if (rank == commsize - 1) {
+            printf("Rank %d in comm: le_size %d\n", rank, le_size);
+        }
+
         MPI_Allgather(&le_size, 1, MPI_INT, small, 1, MPI_INT, comm);
         MPI_Barrier(comm);
         MPI_Allgather(&g_size, 1, MPI_INT, big, 1, MPI_INT, comm);
@@ -473,7 +477,12 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         MPI_Barrier(comm);
         smallsum = 0;
         bigsum = 0;
+        the_time = time(0);
+        while (time(0) < the_time + (0.5 * g_rank))
+            ;
+        printf("Rank %d, small: ", rank);
         for(int i = 0; i < commsize; i++){
+            printf("%d ", small[i]);
             smallsum += small[i];
             bigsum += big[i];
         }
@@ -520,7 +529,7 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
 
     int *send_counts = (int *) calloc(commsize, sizeof(int));
     int *send_disp = (int *) calloc(commsize, sizeof(int));
-    int *rec_count = (int *) malloc(commsize * sizeof(int));
+    int *rec_count = (int *) calloc(commsize, sizeof(int));
     int *rec_disp = (int *) calloc(commsize, sizeof(int));
     int *rec_arr = (int *) calloc(smallsum + bigsum, sizeof(int));
     int ind, rec_sum = 0;
@@ -529,10 +538,14 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             ind = ((i+1) * l_proc_num) + rank;
             if (ind < commsize) {
                 rec_count[ind] = small[ind];
+                // if (rank == 0) {
+                    // printf("Rank 0 on comm: ind %d\n", ind);
+                // }
                 // rec_sum += small[ind];
-            } else {
-                rec_count[i] = 0;
             }
+            // } else {
+            //     rec_count[ind] = 0;
+            // }
             if (i > 0) {
                 rec_disp[i] = rec_disp[i - 1] + rec_count[i - 1];
             }
@@ -545,9 +558,10 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             if (ind < l_proc_num) {
                 rec_count[ind] = big[ind];
                 // rec_sum += big[ind];
-            } else {
-                rec_count[i] = 0;
             }
+            // } else {
+            //     rec_count[i] = 0;
+            // }
             if (i > 0) {
                 rec_disp[i] = rec_disp[i - 1] + rec_count[i - 1];
             }
@@ -569,8 +583,8 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             send_disp[i] = g_size;
         }
 
-        // the_time = time(0);
-        // while (time(0) < the_time + (0.5 * g_rank))
+        the_time = time(0);
+        while (time(0) < the_time + (0.5 * g_rank))
             ;
         // if (rank == 3) {
             printf("Rank: %d", g_rank);
@@ -608,8 +622,8 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
             send_disp[i] = le_size;
         }
 
-        // the_time = time(0);
-        // while (time(0) < the_time + (0.5 * g_rank))
+        the_time = time(0);
+        while (time(0) < the_time + (0.5 * g_rank))
             ;
         // if (rank == 3) {
             printf("Rank: %d", g_rank);
