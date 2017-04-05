@@ -82,6 +82,12 @@ void parallel_sort(int* begin, int* end, MPI_Comm comm) {
         begin[i] = rec_arr[start + i];
     }
 
+    free(temp);
+    free(sizes);
+    free(send_count);
+    free(send_disp);
+    free(rec_disp);
+    free(rec_arr);
 
 }
 
@@ -248,6 +254,9 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         rec_sum += rec_count[i];
     }
 
+    free(small);
+    free(big);
+
     // MPI_Barrier(MPI_COMM_WORLD);
     // printf("3, rank %d\n", g_rank);
     // printf("Rank %d, l/g_proc_num %d %d\n", g_rank, l_proc_num, g_proc_num);
@@ -271,6 +280,11 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         MPI_Alltoallv(begin, send_counts, send_disp, MPI_INT,
             rec_arr, rec_count, rec_disp, MPI_INT, comm);
     }
+
+    free(send_counts);
+    free(send_disp);
+    free(rec_disp);
+    free(rec_count);
 
     // MPI_Barrier(MPI_COMM_WORLD);
     // printf("4, rank %d\n", g_rank);
@@ -298,6 +312,9 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         g_size += rec_sum;
     }
 
+    free(greater);
+    free(rec_arr);
+
     // Create new communicator
     // Dealloc old comm
     MPI_Comm newcomm;
@@ -309,7 +326,7 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
     }
 
     MPI_Comm_split(comm, color, rank, &newcomm);
-    //MPI_Comm_free(&comm);
+    if (commsize != p) MPI_Comm_free(&comm);
 
     // MPI_Barrier(MPI_COMM_WORLD);
     // printf("5, rank %d\n", g_rank);
@@ -341,6 +358,7 @@ int recursive_sort(int *begin, int *end, int** out, int comm_arr_size, MPI_Comm 
         fin_count = recursive_sort(newbegin, newbegin + g_size,
             &output, bigsum, newcomm);
     }
+    free(newbegin);
     *out = output;
     return fin_count;
 }
