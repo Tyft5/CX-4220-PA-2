@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#PBS -q class
+#PBS -l nodes=1:sixcore
+#PBS -l walltime=01:00:00
+#PBS -N tippens_4220_prog2
+
+cd /nethome/ttippens6/CX4220/prog_assign_2
+
+export $PBS_NODEFILE
+
+module load openmpi-x86_64
+
+sh run_sort_test.sh
